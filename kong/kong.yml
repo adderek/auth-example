@@ -1,0 +1,129 @@
+# ------------------------------------------------------------------------------
+# This is an example file to get you started with using
+# declarative configuration in Kong.
+# ------------------------------------------------------------------------------
+
+# Metadata fields start with an underscore (_)
+# Fields that do not start with an underscore represent Kong entities and attributes
+
+# _format_version is mandatory,
+# it specifies the minimum version of Kong that supports the format
+
+_format_version: "3.0"
+
+# _transform is optional, defaulting to true.
+# It specifies whether schema transformations should be applied when importing this file
+# as a rule of thumb, leave this setting to true if you are importing credentials
+# with plain passwords, which need to be encrypted/hashed before storing on the database.
+# On the other hand, if you are reimporting a database with passwords already encrypted/hashed,
+# set it to false.
+
+_transform: true
+
+services:
+- name: dummy-service
+  url: http://dummy
+  routes:
+    - name: dummy-route
+      paths:
+        - /dummy
+      methods:
+        - GET
+      preserve_host: false
+      strip_path: true
+  plugins:
+    #- name: jwt
+    - name: hmac-auth
+      config:
+        hide_credentials: true # do NOT pass creds to upstream
+        clock_skew: 86000
+        enforce_headers:
+          - customerid
+          - date
+
+consumers:
+  - username: user-consumer
+    custom_id: custom-userid
+    jwt_secrets:
+      - algorithm: HS256
+        key: some-confidential-key
+        secret: some-confidential-secret
+        rsa_public_key: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt4R0cLCRwjSQu2tOF6LH
+          M6Kc0HBYJIAqBC1B/nh6GDljO7/qBfKiEBgJaNxqcbTAvtn+V9taHfdiAW9ZosR4
+          AOMVa2yVKRoO2MxoBHQ/hnDwPZRqcuBFlNAbvDmFktiL10sU3bsVx8xCRbUmolu2
+          /0HxB5mBLkHK74I0WTC2mm/EQmp6Ih/3g58wIExskxM2EJRKIFgA4spoDqs60ajU
+          nOStBGwt8KbUznNq4e8gaan7nvPQldS3/mhuhifwy7CnMBO4N431CmiqXI/Il4bJ
+          WZtZSVqG4KVhQo/Dqs9a6FNM6nnWT2M6VHtndVe0jtYf4TwmHt0xqC3BX2nicguK
+          QQIDAQAB
+          -----END PUBLIC KEY-----
+      - algorithm: HS256
+        key: some-confidential-key
+        secret: some-confidential-secret
+    hmacauth_credentials:
+      - username: hmac-user
+        secret: some-hmac-confidential-secret
+
+
+# https://jwt.io
+# Generate a key for
+#   header {
+#     "alg": "HS256",
+#     "typ": "JWT"
+#   }
+#
+#   payload {
+#     "sub": "1234567890",
+#     "name": "John Doe",
+#     "customerID": "1234",
+#     "iat": 1516239022,
+#     "iss": "some-confidential-key"
+#   }
+#   !!! Important: You should ALWAYS include exp (expiration) and aud (audience)
+#       Any request sent to you with "aud" that is not yourself must be rejected
+#   See https://www.rfc-editor.org/rfc/rfc7519 for more details
+#
+#   signature HMACSHA256(
+#     base64UrlEncode(header) + "." +
+#     base64UrlEncode(payload),
+#     'some-confidential-secret'
+#   )
+
+# Result is:
+# eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiY3VzdG9tZXJJRCI6IjEyMzQiLCJpYXQiOjE1MTYyMzkwMjIsImlzcyI6InNvbWUtY29uZmlkZW50aWFsLWtleSJ9.w7XjHqINgeMLeLx-AZqAqAlFxu3ps6sbHVIG64wMWoU
+
+# Let's try it:
+# curl http://localhost:8000/dummy/ -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJpc3MiOiJzb21lLWNvbmZpZGVudGlhbC1rZXkifQ.E8EUvt_NxUwD0FfdtEIhFZQDZjRi8I_LI6QaFhZGYqo'
+# And it works, our "dummy" received the JWT
+
+# Cert from 0auth
+# curl -o dummy.pem https://dummy.eu.auth0.com/pem
+# openssl x509 -pubkey -noout -in dummy.pem > pubkey.pem
+
+# Prv/Pub key, own one, see https://tech.aufomm.com/how-to-use-jwt-plugin/
+# `openssl genrsa -out jwt-private.pem 2048`
+# `openssl rsa -in jwt-private.pem -outform PEM -pubout -out jwt-public.pem`
+# Warning:
+#  `curl -XPOST localhost:8001/consumers/user-consumer/jwt` is not supported in db-less mode
+#  try `curl localhost:8001/consumers/user-consumer/jwt` to GET the configured key
+
+#plugins:
+  # - name: acl
+  # - name: correlation-id
+  # - name: oauth2
+  # - name: key-auth
+  # - name: zipkin
+  # - name: opentelemetry
+  # - name: tcp-log
+  # - name: http-log
+  # - name: hmac-auth
+  # - name: basic-auth
+  # - name: session
+  # - name: loggy
+  # - name: ldap-auth
+  # - name: statsd
+  # - name: jwt
+#upstreams:
+#  - name: dummy
+
